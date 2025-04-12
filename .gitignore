@@ -1,0 +1,47 @@
+# Global
+.env
+__pycache__/
+*.py[cod]
+*.log
+*.sqlite3
+.DS_Store
+
+# Python
+venv/
+env/
+*.egg-info/
+
+# FastAPI / Uvicorn
+instance/
+*.db
+*.pid
+
+# Node / React
+node_modules/
+build/
+dist/
+*.lock
+*.log
+
+# OS generated
+Thumbs.db
+ehthumbs.db
+Icon?
+Desktop.ini
+$RECYCLE.BIN/
+
+# VSCode
+.vscode/
+
+# React specific
+frontend/.next/
+frontend/out/
+frontend/.turbo/
+frontend/coverage/
+frontend/public/static/
+
+# Tailwind cache
+frontend/.tailwind/
+
+# TypeScript cache
+frontend/tsconfig.tsbuildinfo
