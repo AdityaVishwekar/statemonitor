@@ -20,9 +20,9 @@ def watch_remote_file(
         print(username)
         client.connect(hostname=host, username=username, key_filename=private_key_path, passphrase=passphrase,disabled_algorithms=dict(pubkeys=["rsa-sha2-512", "rsa-sha2-256"]))
         # Execute commands or perform actions after successful connection
-        stdin, stdout, stderr = client.exec_command('ls -l')
-        output = stdout.read().decode('utf-8')
-        print(output)
+        # stdin, stdout, stderr = client.exec_command('ls -l')
+        # output = stdout.read().decode('utf-8')
+        # print(output)
 
         sftp = client.open_sftp()
         print(f"Connected. Watching {remote_filepath}")

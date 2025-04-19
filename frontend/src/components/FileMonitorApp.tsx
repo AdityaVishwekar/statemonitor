@@ -2,21 +2,49 @@ import React, { useState } from 'react';
 import axios from 'axios';
 
 const FileMonitorApp: React.FC = () => {
-  const [formData, setFormData] = useState({
-    host: '',
-    port: 22,
-    username: '',
-    remote_filepath: '',
-    private_key_path: '',
-    passphrase: ''
-  });
-
+  const [servers, setServers] = useState([
+    { host: '', port: 22, username: '', remote_filepath: '', passphrase: '' }
+  ]);
+  const [privateKeyFile, setPrivateKeyFile] = useState<File | null>(null);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+  const cloneServer = (index: number) => {
+    const base = servers[index];
+    setServers([...servers, { ...base, remote_filepath: '' }]);
+  };
+
+  const handleServerChange = (
+  index: number,
+  e: React.ChangeEvent<HTMLInputElement>
+) => {
+  const { name, value } = e.target;
+
+  setServers((prev) => {
+    const updated = [...prev];
+    if (name === 'port') {
+      updated[index].port = parseInt(value, 10);
+    } else if (name === 'host' || name === 'username' || name === 'remote_filepath' || name === 'passphrase') {
+      updated[index][name] = value;
+    }
+    return updated;
+  });
+};
+
+
+  const addServer = () => {
+    setServers([...servers, { host: '', port: 22, username: '', remote_filepath: '', passphrase: '' }]);
+  };
+
+  const removeServer = (index: number) => {
+    const updated = servers.filter((_, i) => i !== index);
+    setServers(updated);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setPrivateKeyFile(e.target.files[0]);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -25,20 +53,16 @@ const FileMonitorApp: React.FC = () => {
     setMessage('');
 
     const data = new FormData();
-    data.append('host', formData.host);
-    data.append('port', formData.port.toString());
-    data.append('username', formData.username);
-    data.append('remote_filepath', formData.remote_filepath);
-    data.append('passphrase', formData.passphrase);
+    data.append('servers', JSON.stringify(servers));
     if (privateKeyFile) {
       data.append('private_key_file', privateKeyFile);
     }
 
     try {
-      await axios.post('http://localhost:8000/start-remote-watch', data, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      await axios.post('http://localhost:8000/start-multi-watch', data, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
-      setMessage('✅ Monitoring started successfully.');
+      setMessage('✅ Monitoring started for all files.');
     } catch (error) {
       console.error(error);
       setMessage('❌ Failed to start monitoring.');
@@ -47,44 +71,38 @@ const FileMonitorApp: React.FC = () => {
     }
   };
 
-
-  const [privateKeyFile, setPrivateKeyFile] = useState<File | null>(null);
-
-
   return (
-    <div className="p-6 max-w-2xl mx-auto mt-10 bg-white shadow-lg rounded-lg">
-      <h1 className="text-2xl font-bold mb-6">State Guardian</h1>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium">Host</label>
-          <input type="text" name="host" value={formData.host} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2" required />
-        </div>
-        <div>
-          <label className="block text-sm font-medium">Port</label>
-          <input type="number" name="port" value={formData.port} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2" required />
-        </div>
-        <div>
-          <label className="block text-sm font-medium">Username</label>
-          <input type="text" name="username" value={formData.username} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2" required />
-        </div>
-        <div>
-          <label className="block text-sm font-medium">Remote File Path</label>
-          <input type="text" name="remote_filepath" value={formData.remote_filepath} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2" required />
-        </div>
+    <div className="p-6 max-w-4xl mx-auto mt-10 bg-white shadow-lg rounded-lg">
+      <h1 className="text-2xl font-bold mb-6">Multi-File Monitor (Same or Multiple Servers)</h1>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {servers.map((server, index) => (
+          <div key={index} className="border p-4 rounded-lg relative">
+            <h2 className="text-md font-semibold mb-2">Server #{index + 1}</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <input type="text" name="host" placeholder="Host" value={server.host} onChange={(e) => handleServerChange(index, e)} className="border p-2 rounded" required />
+              <input type="number" name="port" placeholder="Port" value={server.port} onChange={(e) => handleServerChange(index, e)} className="border p-2 rounded" required />
+              <input type="text" name="username" placeholder="Username" value={server.username} onChange={(e) => handleServerChange(index, e)} className="border p-2 rounded" required />
+              <input type="text" name="remote_filepath" placeholder="Remote File Path" value={server.remote_filepath} onChange={(e) => handleServerChange(index, e)} className="border p-2 rounded" required />
+              <input type="password" name="passphrase" placeholder="Passphrase (optional)" value={server.passphrase} onChange={(e) => handleServerChange(index, e)} className="border p-2 rounded col-span-2" />
+            </div>
+            <div className="absolute top-2 right-2 flex gap-2">
+              {servers.length > 1 && (
+                <button type="button" onClick={() => removeServer(index)} className="text-red-500 hover:text-red-700 text-sm">Remove</button>
+              )}
+              <button type="button" onClick={() => cloneServer(index)} className="text-blue-500 hover:text-blue-700 text-sm">+ Another file</button>
+            </div>
+          </div>
+        ))}
+
+        <button type="button" onClick={addServer} className="text-blue-600 font-medium hover:underline">
+          + Add another server
+        </button>
+
         <div>
           <label className="block text-sm font-medium">Private Key File</label>
-          <input
-            type="file"
-            accept=".pem,.key"
-            onChange={(e) => setPrivateKeyFile(e.target.files?.[0] || null)}
-            className="w-full border border-gray-300 rounded px-3 py-2"
-            required
-          />
+          <input type="file" name="private_key_file" accept=".pem,.key" onChange={handleFileChange} className="w-full border border-gray-300 rounded px-3 py-2" required />
         </div>
-        <div>
-          <label className="block text-sm font-medium">Passphrase</label>
-          <input type="password" name="passphrase" value={formData.passphrase} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2" />
-        </div>
+
         <button
           type="submit"
           className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded w-full"
@@ -92,8 +110,9 @@ const FileMonitorApp: React.FC = () => {
         >
           {loading ? 'Starting...' : 'Start Monitoring'}
         </button>
+
+        {message && <p className="mt-4 text-center text-sm text-gray-700">{message}</p>}
       </form>
-      {message && <p className="mt-4 text-center text-sm text-gray-700">{message}</p>}
     </div>
   );
 };
