@@ -6,6 +6,7 @@ from app.service.file_watcher import watch_remote_file
 import tempfile
 import shutil
 import threading
+from app.service.file_watcher import watch_remote_file, get_all_status
 
 
 router = APIRouter()
@@ -65,3 +66,7 @@ async def start_multi_watch(
 
 
     return {"status": f"Started monitoring {len(server_list)} servers."}
+
+@router.get("/status")
+def status():
+    return get_all_status()

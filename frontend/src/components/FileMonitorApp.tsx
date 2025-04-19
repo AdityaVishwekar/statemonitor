@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 const FileMonitorApp: React.FC = () => {
@@ -8,29 +8,25 @@ const FileMonitorApp: React.FC = () => {
   const [privateKeyFile, setPrivateKeyFile] = useState<File | null>(null);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [watchers, setWatchers] = useState<any[]>([]);
 
   const cloneServer = (index: number) => {
     const base = servers[index];
     setServers([...servers, { ...base, remote_filepath: '' }]);
   };
 
-  const handleServerChange = (
-  index: number,
-  e: React.ChangeEvent<HTMLInputElement>
-) => {
-  const { name, value } = e.target;
-
-  setServers((prev) => {
-    const updated = [...prev];
-    if (name === 'port') {
-      updated[index].port = parseInt(value, 10);
-    } else if (name === 'host' || name === 'username' || name === 'remote_filepath' || name === 'passphrase') {
-      updated[index][name] = value;
-    }
-    return updated;
-  });
-};
-
+  const handleServerChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setServers((prev) => {
+      const updated = [...prev];
+      if (name === 'port') {
+        updated[index].port = parseInt(value, 10);
+      } else if (name === 'host' || name === 'username' || name === 'remote_filepath' || name === 'passphrase') {
+        updated[index][name] = value;
+      }
+      return updated;
+    });
+  };
 
   const addServer = () => {
     setServers([...servers, { host: '', port: 22, username: '', remote_filepath: '', passphrase: '' }]);
@@ -71,9 +67,24 @@ const FileMonitorApp: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const res = await axios.get('http://localhost:8000/status');
+        setWatchers(res.data);
+      } catch (e) {
+        console.error('Failed to fetch status');
+      }
+    };
+
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <div className="p-6 max-w-4xl mx-auto mt-10 bg-white shadow-lg rounded-lg">
-      <h1 className="text-2xl font-bold mb-6">Multi-File Monitor (Same or Multiple Servers)</h1>
+    <div className="p-6 max-w-6xl mx-auto mt-10 bg-white shadow-lg rounded-lg">
+      <h1 className="text-2xl font-bold mb-6">StateGuardian Multi-File Monitor (Same or Multiple Servers)</h1>
       <form onSubmit={handleSubmit} className="space-y-6">
         {servers.map((server, index) => (
           <div key={index} className="border p-4 rounded-lg relative">
@@ -113,6 +124,34 @@ const FileMonitorApp: React.FC = () => {
 
         {message && <p className="mt-4 text-center text-sm text-gray-700">{message}</p>}
       </form>
+
+      {watchers.length > 0 && (
+        <div className="mt-10">
+          <h2 className="text-xl font-bold mb-4">Live Status</h2>
+          <table className="w-full text-sm border">
+            <thead>
+              <tr className="bg-gray-100 text-left">
+                <th className="p-2 border">Host/File</th>
+                <th className="p-2 border">Status</th>
+                <th className="p-2 border">Last Updated</th>
+                <th className="p-2 border">Logs</th>
+              </tr>
+            </thead>
+            <tbody>
+              {watchers.map((w, idx) => (
+                <tr key={idx} className="border-t">
+                  <td className="p-2 border">{w.host_file}</td>
+                  <td className="p-2 border">{w.status}</td>
+                  <td className="p-2 border">{w.last_updated}</td>
+                  <td className="p-2 border whitespace-pre-wrap text-xs">
+                    {w.logs.slice(-5).join('\n')}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };
