@@ -23,8 +23,11 @@ frontend/
 ### ▶️ Start Frontend
 ```bash
 cd frontend
+export NODE_OPTIONS=--openssl-legacy-provider
 npm install
-npm run dev
+npm install react-router-dom@5
+npm install --save-dev @types/react-router-dom@5
+npm start
 ```
 
 ### 🛠 Tech Stack
