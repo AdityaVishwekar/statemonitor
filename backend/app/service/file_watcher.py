@@ -5,6 +5,8 @@ from datetime import datetime
 from collections import defaultdict, deque
 from app.utils.emailer import send_email
 from app.utils.logger import log
+from app.state.tracker import is_muted, get_subscribers
+
 
 watcher_status = defaultdict(lambda: {
     "status": "pending",
@@ -53,7 +55,18 @@ def watch_remote_file(
                     prev_mtime = current_mtime
                     print("File changed!")
                     log_event(host, remote_filepath, "File changed!")
-                    send_email("Remote File Changed", f"The file {remote_filepath} on {host} has been modified.")
+                    # Check if alerts are muted for server
+                    if is_muted(host, remote_filepath):
+                        print(f"🔕 Alerts muted for {host}:{remote_filepath}")
+                        continue
+
+                    emails = get_subscribers(host, remote_filepath)
+                    if emails:
+                        send_email(
+                            "Remote File Changed",
+                            f"The file '{remote_filepath}' on '{host}' has been modified.",
+                            to_emails=emails
+                        )
             except FileNotFoundError:
                 print("File not found.")
                 log_event(host, remote_filepath, "File not found. Stopping monitor.")
@@ -73,11 +86,13 @@ def watch_remote_file(
         print("SSH connection closed.")
         log_event(host, remote_filepath, "SSH connection closed.")
 
+
 def get_all_status():
     return [
         {
             "host_file": key,
             **value,
+            "status": "muted" if is_muted(*key.split(":")) else value["status"],
             "logs": list(value["logs"])
         }
         for key, value in watcher_status.items()

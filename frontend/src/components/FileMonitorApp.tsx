@@ -4,6 +4,7 @@ import axios from 'axios';
 const FileMonitorApp: React.FC = () => {
   const [hostsText, setHostsText] = useState('');
   const [filesText, setFilesText] = useState('');
+  const [emailsText, setEmailsText] = useState('');
   const [username, setUsername] = useState('ubuntu');
   const [passphrase, setPassphrase] = useState('');
   const [privateKeyFile, setPrivateKeyFile] = useState<File | null>(null);
@@ -11,7 +12,7 @@ const FileMonitorApp: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
+    if (e.target.files?.length) {
       setPrivateKeyFile(e.target.files[0]);
     }
   };
@@ -21,18 +22,12 @@ const FileMonitorApp: React.FC = () => {
     setLoading(true);
     setMessage('');
 
-    const hosts = hostsText
-      .split('\n')
-      .map((h) => h.trim())
-      .filter((h) => h.length > 0);
+    const hosts = hostsText.split('\n').map(h => h.trim()).filter(Boolean);
+    const filepaths = filesText.split('\n').map(f => f.trim()).filter(Boolean);
+    const emails = emailsText.split(/[\n,]/).map(e => e.trim()).filter(Boolean);
 
-    const filepaths = filesText
-      .split('\n')
-      .map((f) => f.trim())
-      .filter((f) => f.length > 0);
-
-    const servers = hosts.flatMap((host) =>
-      filepaths.map((remote_filepath) => ({
+    const servers = hosts.flatMap(host =>
+      filepaths.map(remote_filepath => ({
         host,
         port: 22,
         username,
@@ -43,6 +38,7 @@ const FileMonitorApp: React.FC = () => {
 
     const formData = new FormData();
     formData.append('servers', JSON.stringify(servers));
+    formData.append('emails', emails.join(','));
     if (privateKeyFile) {
       formData.append('private_key_file', privateKeyFile);
     }
@@ -64,8 +60,8 @@ const FileMonitorApp: React.FC = () => {
     <div className="p-6 max-w-3xl mx-auto mt-10 bg-white shadow-lg rounded-lg">
       <h1 className="text-2xl font-bold mb-6">State Guardian — Multi-Server + File Setup</h1>
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label className="block font-medium mb-1">Username</label>
+
+        <FormGroup label="Username">
           <input
             type="text"
             value={username}
@@ -73,32 +69,28 @@ const FileMonitorApp: React.FC = () => {
             className="w-full border border-gray-300 rounded px-3 py-2"
             required
           />
-        </div>
+        </FormGroup>
 
-        <div>
-          <label className="block font-medium mb-1">Private Key File</label>
+        <FormGroup label="Private Key File">
           <input
             type="file"
-            name="private_key_file"
             accept=".pem,.key"
             onChange={handleFileChange}
             className="w-full border border-gray-300 rounded px-3 py-2"
             required
           />
-        </div>
+        </FormGroup>
 
-        <div>
-          <label className="block font-medium mb-1">Passphrase (if any)</label>
+        <FormGroup label="Passphrase (if any)">
           <input
             type="password"
             value={passphrase}
             onChange={(e) => setPassphrase(e.target.value)}
             className="w-full border border-gray-300 rounded px-3 py-2"
           />
-        </div>
+        </FormGroup>
 
-        <div>
-          <label className="block font-medium mb-1">Target Hosts (one per line)</label>
+        <FormGroup label="Target Hosts (one per line)">
           <textarea
             rows={3}
             placeholder={`192.168.1.101\n192.168.1.102`}
@@ -107,19 +99,28 @@ const FileMonitorApp: React.FC = () => {
             className="w-full border border-gray-300 rounded px-3 py-2 font-mono"
             required
           />
-        </div>
+        </FormGroup>
 
-        <div>
-          <label className="block font-medium mb-1">Remote File Paths (one per line)</label>
+        <FormGroup label="Remote File Paths (one per line)">
           <textarea
             rows={3}
-            placeholder={`/etc/ssh/monitor\n/etc/ssh/config`}
+            placeholder={`/etc/ssh/monitor\n/etc/passwd`}
             value={filesText}
             onChange={(e) => setFilesText(e.target.value)}
             className="w-full border border-gray-300 rounded px-3 py-2 font-mono"
             required
           />
-        </div>
+        </FormGroup>
+
+        <FormGroup label="Alert Recipients (comma or newline)">
+          <textarea
+            rows={3}
+            placeholder="admin@example.com, ops@example.com"
+            value={emailsText}
+            onChange={(e) => setEmailsText(e.target.value)}
+            className="w-full border border-gray-300 rounded px-3 py-2"
+          />
+        </FormGroup>
 
         <button
           type="submit"
@@ -134,5 +135,12 @@ const FileMonitorApp: React.FC = () => {
     </div>
   );
 };
+
+const FormGroup: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+  <div>
+    <label className="block font-medium mb-1">{label}</label>
+    {children}
+  </div>
+);
 
 export default FileMonitorApp;

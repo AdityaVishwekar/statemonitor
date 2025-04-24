@@ -2,12 +2,12 @@ import smtplib
 from email.message import EmailMessage
 import os
 
-def send_email(subject, body):
+def send_email(subject, body,to_emails):
     msg = EmailMessage()
     msg.set_content(body)
     msg["Subject"] = subject
     msg["From"] = os.getenv("EMAIL_FROM")
-    msg["To"] = os.getenv("EMAIL_TO")
+    msg["To"] = to_emails
 
     with smtplib.SMTP(os.getenv("SMTP_SERVER"), int(os.getenv("SMTP_PORT"))) as server:
         server.starttls()
