@@ -3,3 +3,4 @@ uvicorn
 python-dotenv
 paramiko
 python-multipart
+email-validator
