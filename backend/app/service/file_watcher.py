@@ -93,7 +93,8 @@ def get_all_status():
             "host_file": key,
             **value,
             "status": "muted" if is_muted(*key.split(":")) else value["status"],
-            "logs": list(value["logs"])
+            "logs": list(value["logs"]),
+            "emails": get_subscribers(*key.split(":")),
         }
         for key, value in watcher_status.items()
     ]

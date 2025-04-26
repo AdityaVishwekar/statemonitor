@@ -73,3 +73,18 @@ def unmute_host(data: dict):
     unmute(data["host"], data["file"])
     return {"status": "unmuted"}
 
+@router.post("/bulk-mute")
+def bulk_mute(data: dict):
+    for host_file in data["servers"]:
+        host, file = host_file.split(":")
+        mute(host, file)
+    return {"status": "bulk-muted"}
+
+@router.post("/bulk-unmute")
+def bulk_unmute(data: dict):
+    for host_file in data["servers"]:
+        host, file = host_file.split(":")
+        unmute(host, file)
+    return {"status": "bulk-unmuted"}
+
+

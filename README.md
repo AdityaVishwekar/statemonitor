@@ -1,15 +1,17 @@
+
 # 📡 StateMonitor
 
-StateMonitor is a modular web application that monitors changes in a specified file and sends email notifications when the file is modified.
+StateMonitor is a modular web application that monitors changes in specified remote files over SSH and sends email notifications when the file is modified.
 
 ---
 
 ## ⚙️ Features
 
-- ✅ Monitor any local file for changes.
-- 📧 Sends email alerts on file change.
-- 🌐 Modern UI built with React & Tailwind CSS.
-- 🚀 Backend powered by FastAPI.
+- ✅ Monitor any remote file(s) over SSH
+- 📧 Sends email alerts to multiple users
+- ✍️ Bulk mute/unmute alerts per server/file
+- 🌐 Modern UI built with React & Tailwind CSS
+- 🚀 Backend powered by FastAPI
 
 ---
 
@@ -34,6 +36,18 @@ npm start
 - React (TypeScript)
 - Tailwind CSS
 - Axios
+- React Router v5
+
+### ⚙️ Frontend `.env` Configuration
+
+Create a `.env` file inside the `frontend/` folder:
+
+```env
+REACT_APP_API_URL=http://localhost:8000
+```
+
+✅ `REACT_APP_API_URL` points to your FastAPI backend server.  
+✅ Used internally to make API calls from React (e.g., `/start-multi-watch`, `/status`, etc.)
 
 ---
 
@@ -53,53 +67,60 @@ uvicorn app.main:app --reload
 
 ### 🛠 Tech Stack
 - FastAPI
-- Watchdog (file monitoring)
+- Paramiko (SSH monitoring)
 - smtplib (email service)
-- Python 3.10+
+- Python 3.11+
 
 ---
 
 ## 📬 Email Setup
 
-Set the following environment variables (create a `.env` file in `backend/`):
+Create a `.env` file inside `backend/`:
 
 ```env
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
 EMAIL_SENDER=your_email@gmail.com
 EMAIL_PASSWORD=your_app_password
-EMAIL_RECEIVER=receiver_email@gmail.com
 ```
 
-For Gmail users, generate an App Password:  
-👉 https://myaccount.google.com/apppasswords
+👉 For Gmail users, generate an App Password here:  
+https://myaccount.google.com/apppasswords
 
 ---
 
-## 🧪 API Endpoint
+## 🧪 API Endpoints
 
-### Start Monitoring
+### Start Monitoring Remote Files
 ```http
-POST /start-watch
-Content-Type: application/json
+POST /start-multi-watch
+Form Data:
+- servers (JSON list)
+- private_key_file (SSH Key File)
+- emails (comma-separated)
 
-{
-  "filepath": "/absolute/path/to/your/file.txt"
-}
+Returns: {"status": "Started monitoring X servers"}
 ```
 
+---
+
 ## Usage
-1. Navigate to the frontend URL (`http://localhost:3000`).
-2. Enter the file path in the input field (e.g., `/path/to/your/file.txt`).
-3. Click the "Start Monitoring" button to begin file monitoring.
-4. The backend will start monitoring the file, and you will receive an email notification when the file is changed.
+1. Open the frontend URL (`http://localhost:3000`).
+2. Fill in:
+   - Username
+   - SSH private key file
+   - Hosts (one per line)
+   - Remote file paths (one per line)
+   - Emails (comma-separated or newline)
+3. Click **Start Monitoring**.
+4. ✅ Alerts will be emailed on file changes.
 
 ---
 
 ## 📝 To-Do
-- Add authentication
-- Log file changes
-- Add multi-file support
+- Add frontend toast notifications
+- Add total server counters (muted/active)
+- Full Helm chart for K8s deployment
 
 ---
 
@@ -110,6 +131,7 @@ Content-Type: application/json
 
 ---
 
-## License
-This project is licensed under the **Apache License 2.0**. See the [LICENSE](LICENSE) file for more details.
+## 📄 License
 
+This project is licensed under the **Apache License 2.0**.  
+See the [LICENSE](LICENSE) file for full terms.
