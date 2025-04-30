@@ -9,6 +9,7 @@ import threading
 from app.service.file_watcher import watch_remote_file, get_all_status
 from app.state.tracker import add_subscribers
 from app.state.tracker import mute, unmute
+from app.state.state_store import watcher_status
 
 
 router = APIRouter()
@@ -52,6 +53,8 @@ async def start_multi_watch(
             ),
             daemon=True
         )
+        key = f"{server.host}:{server.remote_filepath}"
+        watcher_status[key]["emails"] = emails
         add_subscribers(server.host, server.remote_filepath, email_list)
         print(f"📡 Adding watcher: {server.host} -> {server.remote_filepath}")
         thread.start()

@@ -88,6 +88,19 @@ EMAIL_PASSWORD=your_app_password
 https://myaccount.google.com/apppasswords
 
 ---
+## 💾 Persistence (State Saving)
+
+StateGuardian automatically saves:
+- Active monitored servers
+- Muted/unmuted states
+- Subscribed email addresses
+- Logs of file changes
+
+Saved into a simple JSON file:
+```bash
+state.json
+```
+---
 
 ## 🧪 API Endpoints
 
