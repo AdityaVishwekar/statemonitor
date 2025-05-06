@@ -7,12 +7,18 @@ const LogsPage: React.FC = () => {
   const [watchers, setWatchers] = useState([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [hostFilter, setHostFilter] = useState('');
+  const [pollIntervals, setPollIntervals] = useState<{ [key: string]: number }>({});
 
   useEffect(() => {
     const fetchStatus = async () => {
       try {
         const res = await axios.get(`${API_BASE_URL}/status`);
         setWatchers(res.data);
+        const intervals: { [key: string]: number } = {};
+        res.data.forEach((w: any) => {
+          intervals[w.host_file] = w.poll_interval || 10;
+        });
+        setPollIntervals(intervals);
       } catch (e) {
         console.error('Failed to fetch status');
       }
@@ -46,6 +52,22 @@ const LogsPage: React.FC = () => {
       setSelected([]);
     } catch (e) {
       console.error('Failed to bulk mute/unmute', e);
+    }
+  };
+
+  const handlePollIntervalChange = (hostFile: string, value: string) => {
+    setPollIntervals(prev => ({ ...prev, [hostFile]: parseInt(value) }));
+  };
+
+  const updatePollInterval = async (hostFile: string) => {
+    const interval = pollIntervals[hostFile];
+    try {
+      await axios.post(`${API_BASE_URL}/update_poll_interval`, {
+        host_file: hostFile,
+        interval,
+      });
+    } catch (e) {
+      console.error('Failed to update poll interval', e);
     }
   };
 
@@ -101,6 +123,7 @@ const LogsPage: React.FC = () => {
               <th className="p-2 border">Status</th>
               <th className="p-2 border">Last Updated</th>
               <th className="p-2 border">Recent Logs</th>
+              <th className="p-2 border">Poll Interval</th>
             </tr>
           </thead>
           <tbody>
@@ -125,6 +148,23 @@ const LogsPage: React.FC = () => {
                 <td className="p-2 border">{w.last_updated || '—'}</td>
                 <td className="p-2 border whitespace-pre-wrap text-gray-700">
                   {w.logs?.slice(-5).join('\n') || 'No logs yet.'}
+                </td>
+                <td className="p-2 border">
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="number"
+                      min="1"
+                      className="border px-2 py-1 w-20"
+                      value={pollIntervals[w.host_file]}
+                      onChange={(e) => handlePollIntervalChange(w.host_file, e.target.value)}
+                    />
+                    <button
+                      onClick={() => updatePollInterval(w.host_file)}
+                      className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-sm"
+                    >
+                      Update
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

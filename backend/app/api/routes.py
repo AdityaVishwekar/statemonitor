@@ -10,7 +10,8 @@ from app.service.file_watcher import watch_remote_file, get_all_status
 from app.state.tracker import add_subscribers
 from app.state.tracker import mute, unmute
 from app.state.state_store import watcher_status
-
+from fastapi import APIRouter, HTTPException
+from app.state.tracker import update_poll_interval
 
 router = APIRouter()
 
@@ -89,5 +90,3 @@ def bulk_unmute(data: dict):
         host, file = host_file.split(":")
         unmute(host, file)
     return {"status": "bulk-unmuted"}
-
-

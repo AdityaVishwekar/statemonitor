@@ -12,6 +12,8 @@ watcher_status = defaultdict(lambda: {
     "private_key_path": ""
 })
 
+persistent_state = {}
+
 _loaded = load_state()
 for k, v in _loaded.get("watcher_status", {}).items():
     watcher_status[k].update({
@@ -24,6 +26,9 @@ for k, v in _loaded.get("watcher_status", {}).items():
         "passphrase": v.get("passphrase", ""),
         "private_key_path": v.get("private_key_path", "")
     })
+
+# 🆕 Load poll intervals
+persistent_state.update(_loaded.get("persistent_state", {}))
 
 def save_watcher_status():
     save_state({
@@ -39,5 +44,6 @@ def save_watcher_status():
                 "private_key_path": v.get("private_key_path", "")
             }
             for k, v in watcher_status.items()
-        }
+        },
+        "persistent_state": persistent_state  # 🆕 Save it too
     })

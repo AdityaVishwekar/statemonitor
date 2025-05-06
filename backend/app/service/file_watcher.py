@@ -2,7 +2,7 @@ import time
 import paramiko
 from datetime import datetime
 from app.utils.emailer import send_email
-from app.state.state_store import watcher_status, save_watcher_status
+from app.state.state_store import watcher_status, save_watcher_status, persistent_state
 from app.state.tracker import is_muted, get_subscribers
 
 def log_event(key, message):
@@ -40,7 +40,8 @@ def watch_remote_file(host, port, username, remote_filepath, passphrase, private
         prev_mtime = sftp.stat(remote_filepath).st_mtime
 
         while True:
-            time.sleep(poll_interval)
+            interval = persistent_state.get(f"{host}:{remote_filepath}", {}).get("poll_interval",10)
+            time.sleep(interval)
             try:
                 current_mtime = sftp.stat(remote_filepath).st_mtime
                 if current_mtime != prev_mtime:
@@ -71,6 +72,7 @@ def watch_remote_file(host, port, username, remote_filepath, passphrase, private
         log_event(key, "SSH connection closed.")
 
 
+
 def get_all_status():
     return [
         {
@@ -79,6 +81,7 @@ def get_all_status():
             "status": "muted" if is_muted(*key.split(":")) else value["status"],
             "logs": list(value["logs"]),
             "emails": get_subscribers(*key.split(":")),
+            "poll_interval": persistent_state.get(key, {}).get("poll_interval", 10)  # 👈 Add this
         }
         for key, value in watcher_status.items()
     ]
