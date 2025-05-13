@@ -1,11 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 
+interface WatcherStatus {
+  host_file: string;
+  status: string;
+  last_updated?: string;
+  emails?: string[];
+  logs?: string[];
+  poll_interval?: number;
+}
+
 const API_BASE_URL = process.env.REACT_APP_API_URL || '';
 
 const LogsPage: React.FC = () => {
-  const [watchers, setWatchers] = useState([]);
-  const [selected, setSelected] = useState<string[]>([]);
+  const [watchers, setWatchers] = useState<WatcherStatus[]>([]);
+  const [expandedHosts, setExpandedHosts] = useState<string[]>([]);
   const [hostFilter, setHostFilter] = useState('');
   const [pollIntervals, setPollIntervals] = useState<{ [key: string]: number }>({});
 
@@ -14,6 +23,8 @@ const LogsPage: React.FC = () => {
       try {
         const res = await axios.get(`${API_BASE_URL}/status`);
         setWatchers(res.data);
+
+        // Initialize intervals
         const intervals: { [key: string]: number } = {};
         res.data.forEach((w: any) => {
           intervals[w.host_file] = w.poll_interval || 10;
@@ -29,30 +40,17 @@ const LogsPage: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const toggleSelection = (hostFile: string) => {
-    setSelected(prev =>
-      prev.includes(hostFile) ? prev.filter(item => item !== hostFile) : [...prev, hostFile]
+  const groupedByHost = watchers.reduce((acc, curr) => {
+    const [host] = curr.host_file.split(':');
+    acc[host] = acc[host] || [];
+    acc[host].push(curr);
+    return acc;
+  }, {} as { [host: string]: any[] });
+
+  const toggleHost = (host: string) => {
+    setExpandedHosts(prev =>
+      prev.includes(host) ? prev.filter(h => h !== host) : [...prev, host]
     );
-  };
-
-  const toggleSelectAll = () => {
-    if (selected.length === filtered.length) {
-      setSelected([]);
-    } else {
-      setSelected(filtered.map((w: any) => w.host_file));
-    }
-  };
-
-  const handleBulkMute = async (mute: boolean) => {
-    if (selected.length === 0) return;
-    try {
-      await axios.post(`${API_BASE_URL}/${mute ? 'bulk-mute' : 'bulk-unmute'}`, {
-        servers: selected,
-      });
-      setSelected([]);
-    } catch (e) {
-      console.error('Failed to bulk mute/unmute', e);
-    }
   };
 
   const handlePollIntervalChange = (hostFile: string, value: string) => {
@@ -71,12 +69,6 @@ const LogsPage: React.FC = () => {
     }
   };
 
-  const filtered = hostFilter
-    ? watchers.filter((w: any) => w.host_file.includes(hostFilter))
-    : watchers;
-
-  const isAllSelected = selected.length === filtered.length && filtered.length > 0;
-
   return (
     <div className="max-w-7xl mx-auto p-6 bg-white rounded-lg shadow">
       <div className="flex justify-between items-center mb-6">
@@ -90,87 +82,71 @@ const LogsPage: React.FC = () => {
         />
       </div>
 
-      <div className="mb-4 flex gap-4">
-        <button
-          onClick={() => handleBulkMute(true)}
-          className="bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded disabled:opacity-50"
-          disabled={selected.length === 0}
-        >
-          Mute Selected
-        </button>
-        <button
-          onClick={() => handleBulkMute(false)}
-          className="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded disabled:opacity-50"
-          disabled={selected.length === 0}
-        >
-          Unmute Selected
-        </button>
-      </div>
+      {Object.entries(groupedByHost)
+        .filter(([host]) => host.includes(hostFilter))
+        .map(([host, files]) => (
+          <div key={host} className="mb-6 border border-gray-300 rounded">
+            <button
+              className="w-full text-left p-4 bg-gray-100 hover:bg-gray-200 font-semibold"
+              onClick={() => toggleHost(host)}
+            >
+              {host} ({files.length} file{files.length > 1 ? 's' : ''})
+            </button>
 
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse border">
-          <thead className="bg-gray-100 text-left">
-            <tr>
-              <th className="p-2 border">
-                <input
-                  type="checkbox"
-                  checked={isAllSelected}
-                  onChange={toggleSelectAll}
-                />
-              </th>
-              <th className="p-2 border">Host:File</th>
-              <th className="p-2 border">Emails</th>
-              <th className="p-2 border">Status</th>
-              <th className="p-2 border">Last Updated</th>
-              <th className="p-2 border">Recent Logs</th>
-              <th className="p-2 border">Poll Interval</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((w: any, idx: number) => (
-              <tr key={idx} className="border-t">
-                <td className="p-2 border">
-                  <input
-                    type="checkbox"
-                    checked={selected.includes(w.host_file)}
-                    onChange={() => toggleSelection(w.host_file)}
-                  />
-                </td>
-                <td className="p-2 border">{w.host_file}</td>
-                <td className="p-2 border">{(w.emails || []).join(', ') || '—'}</td>
-                <td className="p-2 border">
-                  {w.status === 'muted' ? (
-                    <span className="text-red-600 font-bold">Muted</span>
-                  ) : (
-                    <span className="text-green-600 font-bold">Active</span>
-                  )}
-                </td>
-                <td className="p-2 border">{w.last_updated || '—'}</td>
-                <td className="p-2 border whitespace-pre-wrap text-gray-700">
-                  {w.logs?.slice(-5).join('\n') || 'No logs yet.'}
-                </td>
-                <td className="p-2 border">
-                  <div className="flex gap-2 items-center">
-                    <input
-                      type="number"
-                      min="1"
-                      className="border px-2 py-1 w-20"
-                      value={pollIntervals[w.host_file]}
-                      onChange={(e) => handlePollIntervalChange(w.host_file, e.target.value)}
-                    />
-                    <button
-                      onClick={() => updatePollInterval(w.host_file)}
-                      className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-sm"
-                    >
-                      Update
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            {expandedHosts.includes(host) && (
+              <table className="w-full text-sm border-collapse">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="p-2 border">File</th>
+                    <th className="p-2 border">Status</th>
+                    <th className="p-2 border">Last Updated</th>
+                    <th className="p-2 border">Emails</th>
+                    <th className="p-2 border">Logs</th>
+                    <th className="p-2 border">Poll Interval</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {files.map((fileEntry, idx) => (
+                    <tr key={idx} className="border-t">
+                      <td className="p-2 border">{fileEntry.host_file.split(':')[1]}</td>
+                      <td className="p-2 border">
+                        {fileEntry.status === 'muted' ? (
+                          <span className="text-red-600 font-bold">Muted</span>
+                        ) : (
+                          <span className="text-green-600 font-bold">Active</span>
+                        )}
+                      </td>
+                      <td className="p-2 border">{fileEntry.last_updated || '—'}</td>
+                      <td className="p-2 border">{(fileEntry.emails || []).join(', ') || '—'}</td>
+                      <td className="p-2 border whitespace-pre-wrap text-gray-700">
+                        {fileEntry.logs?.slice(-5).join('\n') || 'No logs yet.'}
+                      </td>
+                      <td className="p-2 border">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="1"
+                            className="border px-2 py-1 w-20"
+                            value={pollIntervals[fileEntry.host_file] ?? fileEntry.poll_interval ?? 10}
+                            onChange={(e) =>
+                              handlePollIntervalChange(fileEntry.host_file, e.target.value)
+                            }
+                          />
+                          <button
+                            onClick={() => updatePollInterval(fileEntry.host_file)}
+                            className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-sm"
+                          >
+                            Update
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        ))}
     </div>
   );
 };
