@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || '';
+
 interface WatcherStatus {
   host_file: string;
   status: string;
@@ -10,13 +12,12 @@ interface WatcherStatus {
   poll_interval?: number;
 }
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || '';
-
 const LogsPage: React.FC = () => {
   const [watchers, setWatchers] = useState<WatcherStatus[]>([]);
   const [expandedHosts, setExpandedHosts] = useState<string[]>([]);
   const [hostFilter, setHostFilter] = useState('');
   const [pollIntervals, setPollIntervals] = useState<{ [key: string]: number }>({});
+  const [selected, setSelected] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchStatus = async () => {
@@ -24,7 +25,6 @@ const LogsPage: React.FC = () => {
         const res = await axios.get(`${API_BASE_URL}/status`);
         setWatchers(res.data);
 
-        // Initialize intervals
         const intervals: { [key: string]: number } = {};
         res.data.forEach((w: any) => {
           intervals[w.host_file] = w.poll_interval || 10;
@@ -45,7 +45,7 @@ const LogsPage: React.FC = () => {
     acc[host] = acc[host] || [];
     acc[host].push(curr);
     return acc;
-  }, {} as { [host: string]: any[] });
+  }, {} as { [host: string]: WatcherStatus[] });
 
   const toggleHost = (host: string) => {
     setExpandedHosts(prev =>
@@ -69,6 +69,33 @@ const LogsPage: React.FC = () => {
     }
   };
 
+  const handleSelect = (hostFile: string) => {
+    setSelected(prev =>
+      prev.includes(hostFile) ? prev.filter(hf => hf !== hostFile) : [...prev, hostFile]
+    );
+  };
+
+  const handleSelectAll = () => {
+    const allHostFiles = watchers.map(w => w.host_file);
+    if (selected.length === allHostFiles.length) {
+      setSelected([]);
+    } else {
+      setSelected(allHostFiles);
+    }
+  };
+
+  const handleBulkMute = async (mute: boolean) => {
+    if (selected.length === 0) return;
+    try {
+      await axios.post(`${API_BASE_URL}/${mute ? 'bulk-mute' : 'bulk-unmute'}`, {
+        servers: selected,
+      });
+      setSelected([]);
+    } catch (e) {
+      console.error('Failed to bulk mute/unmute', e);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto p-6 bg-white rounded-lg shadow">
       <div className="flex justify-between items-center mb-6">
@@ -80,6 +107,29 @@ const LogsPage: React.FC = () => {
           onChange={(e) => setHostFilter(e.target.value)}
           className="border border-gray-300 rounded px-3 py-2"
         />
+      </div>
+
+      <div className="flex gap-4 mb-4">
+        <button
+          onClick={() => handleBulkMute(true)}
+          disabled={selected.length === 0}
+          className="bg-red-600 text-white px-4 py-2 rounded disabled:opacity-50"
+        >
+          Mute Selected
+        </button>
+        <button
+          onClick={() => handleBulkMute(false)}
+          disabled={selected.length === 0}
+          className="bg-green-600 text-white px-4 py-2 rounded disabled:opacity-50"
+        >
+          Unmute Selected
+        </button>
+        <button
+          onClick={handleSelectAll}
+          className="text-sm underline text-gray-600"
+        >
+          {selected.length === watchers.length ? 'Unselect All' : 'Select All'}
+        </button>
       </div>
 
       {Object.entries(groupedByHost)
@@ -97,6 +147,7 @@ const LogsPage: React.FC = () => {
               <table className="w-full text-sm border-collapse">
                 <thead className="bg-gray-50">
                   <tr>
+                    <th className="p-2 border">Select</th>
                     <th className="p-2 border">File</th>
                     <th className="p-2 border">Status</th>
                     <th className="p-2 border">Last Updated</th>
@@ -108,6 +159,13 @@ const LogsPage: React.FC = () => {
                 <tbody>
                   {files.map((fileEntry, idx) => (
                     <tr key={idx} className="border-t">
+                      <td className="p-2 border">
+                        <input
+                          type="checkbox"
+                          checked={selected.includes(fileEntry.host_file)}
+                          onChange={() => handleSelect(fileEntry.host_file)}
+                        />
+                      </td>
                       <td className="p-2 border">{fileEntry.host_file.split(':')[1]}</td>
                       <td className="p-2 border">
                         {fileEntry.status === 'muted' ? (
